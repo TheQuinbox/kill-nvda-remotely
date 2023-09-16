@@ -1,6 +1,7 @@
 #include <winsock2.h>
 #include <iostream>
 #include <string>
+#include <cstdlib>
 
 int main(int argc, const char* argv[]) {
 	if (argc != 2) {
@@ -44,15 +45,17 @@ int main(int argc, const char* argv[]) {
 			WSACleanup();
 			return 1;
 		}
-		std::cout << "Accepted a connection" << std::endl;
 		char buffer[1024];
 		int bytes_received;
 		while ((bytes_received = recv(client_socket, buffer, sizeof(buffer), 0)) > 0) {
 			buffer[bytes_received] = '\0';
 			if (strcmp(buffer, "kill") == 0) {
-				std::cout << "Received 'kill' command." << std::endl;
-				closesocket(client_socket);
-				break;
+				const char *command = "start nvda -r";
+				if (system(command) == 0) {
+					std::cout << "Restarted NVDA" << std::endl;
+				} else {
+					std::cout << "Couldn't restart NVDA!" << std::endl;
+				}
 			}
 		}
 		closesocket(client_socket);
