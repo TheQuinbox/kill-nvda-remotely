@@ -1,8 +1,8 @@
-CC = g++
+CC = gcc
 CFLAGS = -lws2_32 -s -static
 
-CLIENT_SRC = client.cpp
-SERVER_SRC = server.cpp
+CLIENT_SRC = client.c
+SERVER_SRC = server.c
 CLIENT_EXE = client.exe
 SERVER_EXE = server.exe
 
