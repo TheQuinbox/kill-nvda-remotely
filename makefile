@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -lws2_32
+CFLAGS = -lws2_32 -s -static
 
 CLIENT_SRC = client.cpp
 SERVER_SRC = server.cpp
