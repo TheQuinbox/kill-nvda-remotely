@@ -5,21 +5,26 @@
 #include <ini.h>
 
 int main(int argc, const char *argv[]) {
-	if (argc != 2) {
-		fprintf(stderr, "Usage: %s <port>\n", argv[0]);
-		return 1;
+	ini_t *config = ini_load("config.ini");
+	if (config == NULL) {
+		MessageBox(NULL, "Configuration file not found", "Error", MB_OK | MB_ICONERROR);
+		ExitProcess(1);
 	}
-	const char* port = argv[1];
+	const char *port = ini_get(config, NULL, "port");
+	if (!port) {
+		MessageBox(NULL, "Invalid configuration file", "Error", MB_OK | MB_ICONERROR);
+		ExitProcess(1);
+	}
 	WSADATA wsa_data;
 	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
-		fprintf(stderr, "WSAStartup failed\n");
-		return 1;
+		MessageBox(NULL, "WSAStartup failed", "Error", MB_OK | MB_ICONERROR);
+		ExitProcess(1);
 	}
 	SOCKET server_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (server_socket == INVALID_SOCKET) {
-		fprintf(stderr, "Failed to create socket\n");
+		MessageBox(NULL, "Failed to create socket", "Error", MB_OK | MB_ICONERROR);
 		WSACleanup();
-		return 1;
+		ExitProcess(1);
 	}
 	struct sockaddr_in server_address;
 	memset(&server_address, 0, sizeof(server_address));
@@ -27,25 +32,24 @@ int main(int argc, const char *argv[]) {
 	server_address.sin_port = htons(atoi(port));
 	server_address.sin_addr.s_addr = INADDR_ANY;
 	if (bind(server_socket, (struct sockaddr*)&server_address, sizeof(server_address)) == SOCKET_ERROR) {
-		fprintf(stderr, "Bind failed\n");
+		MessageBox(NULL, "Bind failed", "Error", MB_OK | MB_ICONERROR);
 		closesocket(server_socket);
 		WSACleanup();
-		return 1;
+		ExitProcess(1);
 	}
 	if (listen(server_socket, SOMAXCONN) == SOCKET_ERROR) {
-		fprintf(stderr, "Listen failed\n");
+		MessageBox(NULL, "Listen failed", "Error", MB_OK | MB_ICONERROR);
 		closesocket(server_socket);
 		WSACleanup();
-		return 1;
+		ExitProcess(1);
 	}
-	printf("Server listening on port %s\n", port);
 	while (1) {
 		SOCKET client_socket = accept(server_socket, NULL, NULL);
 		if (client_socket == INVALID_SOCKET) {
-			fprintf(stderr, "Accept failed\n");
+			MessageBox(NULL, "Accept failed", "Error", MB_OK | MB_ICONERROR);
 			closesocket(server_socket);
 			WSACleanup();
-			return 1;
+			ExitProcess(1);
 		}
 		char buffer[1024];
 		int bytes_received;
@@ -53,16 +57,12 @@ int main(int argc, const char *argv[]) {
 			buffer[bytes_received] = '\0';
 			if (strcmp(buffer, "kill") == 0) {
 				const char* command = "start nvda -r";
-				if (system(command) == 0) {
-					printf("Restarted NVDA\n");
-				} else {
-					printf("Couldn't restart NVDA!\n");
-				}
+				system(command);
 			}
 		}
 		closesocket(client_socket);
 	}
 	closesocket(server_socket);
 	WSACleanup();
-	return 0;
+	ExitProcess(0);;
 }
