@@ -3,8 +3,7 @@ project(kill_nvda_remotely)
 
 include_directories(ini/src)
 
-add_executable(client client.c ini/src/ini.c)
-set_target_properties(client PROPERTIES WIN32_EXECUTABLE TRUE LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
+add_executable(client WIN32 client.c ini/src/ini.c)
 target_link_libraries(client PRIVATE ws2_32)
 
 add_executable(server server.c ini/src/ini.c)
