@@ -1,7 +1,4 @@
-#include <stdio.h>
-#include <string.h>
 #include <winsock2.h>
-#include <windows.h>
 #include <ini.h>
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_line, int cmd_show) {
