@@ -4,7 +4,7 @@
 #include <windows.h>
 #include <ini.h>
 
-int main(int argc, const char *argv[]) {
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_line, int cmd_show) {
 	ini_t *config = ini_load("config.ini");
 	if (config == NULL) {
 		MessageBox(NULL, "Configuration file not found", "Error", MB_OK | MB_ICONERROR);

@@ -6,6 +6,5 @@ include_directories(ini/src)
 add_executable(client WIN32 client.c ini/src/ini.c)
 target_link_libraries(client PRIVATE ws2_32)
 
-add_executable(server server.c ini/src/ini.c)
-set_target_properties(server PROPERTIES WIN32_EXECUTABLE TRUE LINK_FLAGS "/SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup")
+add_executable(server WIN32 server.c ini/src/ini.c)
 target_link_libraries(server PRIVATE ws2_32)
