@@ -2,6 +2,7 @@
 #include <string.h>
 #include <winsock2.h>
 #include <windows.h>
+#include <ini.h>
 
 int main(int argc, const char *argv[]) {
 	if (argc != 2) {
