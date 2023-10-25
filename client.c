@@ -1,17 +1,26 @@
 #include <winsock2.h>
 #include <ini.h>
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_line, int cmd_show) {
-	ini_t *config = ini_load("config.ini");
-	if (config == NULL) {
-		MessageBox(NULL, "Configuration file not found", "Error", MB_OK | MB_ICONERROR);
-		ExitProcess(1);
-	}
-	const char *host = ini_get(config, NULL, "host");
-	const char *port = ini_get(config, NULL, "port");
-	if (!host || !port) {
-		MessageBox(NULL, "Invalid configuration file", "Error", MB_OK | MB_ICONERROR);
-		ExitProcess(1);
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPSTR cmd_line, int cmd_show) {
+	LPWSTR command_line = GetCommandLineW();
+	int argc;
+	LPWSTR *argv = CommandLineToArgvW(command_line, &argc);
+	char *host, *port;
+	if (argv != NULL && argc == 3) {
+		host = argv[1];
+		port = argv[2];
+	} else {
+		ini_t *config = ini_load("config.ini");
+		if (config == NULL) {
+			MessageBox(NULL, "Configuration file not found", "Error", MB_OK | MB_ICONERROR);
+			ExitProcess(1);
+		}
+		host = ini_get(config, NULL, "host");
+		port = ini_get(config, NULL, "port");
+		if (!host || !port) {
+			MessageBox(NULL, "Invalid configuration file", "Error", MB_OK | MB_ICONERROR);
+			ExitProcess(1);
+		}
 	}
 	const char *message = "kill";
 	WSADATA wsa_data;

@@ -2,15 +2,23 @@
 #include <ini.h>
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_line, int cmd_show) {
-	ini_t *config = ini_load("config.ini");
-	if (config == NULL) {
-		MessageBox(NULL, "Configuration file not found", "Error", MB_OK | MB_ICONERROR);
-		ExitProcess(1);
-	}
-	const char *port = ini_get(config, NULL, "port");
-	if (!port) {
-		MessageBox(NULL, "Invalid configuration file", "Error", MB_OK | MB_ICONERROR);
-		ExitProcess(1);
+	LPWSTR command_line = GetCommandLineW();
+	int argc;
+	LPWSTR *argv = CommandLineToArgvW(command_line, &argc);
+	char *port = NULL;
+	if (argv != NULL && argc == 3) {
+		port = argv[1];
+	} else {
+		ini_t *config = ini_load("config.ini");
+		if (config == NULL) {
+			MessageBox(NULL, "Configuration file not found", "Error", MB_OK | MB_ICONERROR);
+			ExitProcess(1);
+		}
+		port = ini_get(config, NULL, "port");
+		if (!port) {
+			MessageBox(NULL, "Invalid configuration file", "Error", MB_OK | MB_ICONERROR);
+			ExitProcess(1);
+		}
 	}
 	WSADATA wsa_data;
 	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
