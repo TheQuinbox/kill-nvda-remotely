@@ -1,73 +1,58 @@
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include <winsock2.h>
-#include <ini.h>
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE prev_instance, LPTSTR cmd_line, int cmd_show) {
-	LPWSTR command_line = GetCommandLineW();
-	int argc;
-	LPWSTR *argv = CommandLineToArgvW(command_line, &argc);
-	char *port = NULL;
-	if (argv != NULL && argc == 3) {
-		port = argv[1];
-	} else {
-		ini_t *config = ini_load("config.ini");
-		if (config == NULL) {
-			MessageBox(NULL, "Configuration file not found", "Error", MB_OK | MB_ICONERROR);
-			ExitProcess(1);
-		}
-		port = ini_get(config, NULL, "port");
-		if (!port) {
-			MessageBox(NULL, "Invalid configuration file", "Error", MB_OK | MB_ICONERROR);
-			ExitProcess(1);
-		}
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine, int iCmdShow) {
+	char szPort[16] = {0};
+	const char* szConfigFile = "config.ini";
+	if (GetPrivateProfileString("Settings", "Port", NULL, szPort, sizeof(szPort), szConfigFile) == 0) {
+		MessageBox(NULL, "Invalid or missing configuration file", "Error", MB_OK | MB_ICONERROR);
+		ExitProcess(1);
 	}
-	WSADATA wsa_data;
-	if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
+	WSADATA wsaData;
+	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
 		MessageBox(NULL, "WSAStartup failed", "Error", MB_OK | MB_ICONERROR);
 		ExitProcess(1);
 	}
-	SOCKET server_socket = socket(AF_INET, SOCK_STREAM, 0);
-	if (server_socket == INVALID_SOCKET) {
+	SOCKET hServerSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (hServerSocket == INVALID_SOCKET) {
 		MessageBox(NULL, "Failed to create socket", "Error", MB_OK | MB_ICONERROR);
 		WSACleanup();
 		ExitProcess(1);
 	}
-	struct sockaddr_in server_address;
-	memset(&server_address, 0, sizeof(server_address));
-	server_address.sin_family = AF_INET;
-	server_address.sin_port = htons(atoi(port));
-	server_address.sin_addr.s_addr = INADDR_ANY;
-	if (bind(server_socket, (struct sockaddr*)&server_address, sizeof(server_address)) == SOCKET_ERROR) {
+	struct sockaddr_in stServerAddress = {0};
+	stServerAddress.sin_family = AF_INET;
+	stServerAddress.sin_port = htons(atoi(szPort));
+	stServerAddress.sin_addr.s_addr = INADDR_ANY;
+	if (bind(hServerSocket, (struct sockaddr*)&stServerAddress, sizeof(stServerAddress)) == SOCKET_ERROR) {
 		MessageBox(NULL, "Bind failed", "Error", MB_OK | MB_ICONERROR);
-		closesocket(server_socket);
+		closesocket(hServerSocket);
 		WSACleanup();
 		ExitProcess(1);
 	}
-	if (listen(server_socket, SOMAXCONN) == SOCKET_ERROR) {
+	if (listen(hServerSocket, SOMAXCONN) == SOCKET_ERROR) {
 		MessageBox(NULL, "Listen failed", "Error", MB_OK | MB_ICONERROR);
-		closesocket(server_socket);
+		closesocket(hServerSocket);
 		WSACleanup();
 		ExitProcess(1);
 	}
 	while (1) {
-		SOCKET client_socket = accept(server_socket, NULL, NULL);
-		if (client_socket == INVALID_SOCKET) {
+		SOCKET hClientSocket = accept(hServerSocket, NULL, NULL);
+		if (hClientSocket == INVALID_SOCKET) {
 			MessageBox(NULL, "Accept failed", "Error", MB_OK | MB_ICONERROR);
-			closesocket(server_socket);
+			closesocket(hServerSocket);
 			WSACleanup();
 			ExitProcess(1);
 		}
-		char buffer[1024];
-		int bytes_received;
-		while ((bytes_received = recv(client_socket, buffer, sizeof(buffer), 0)) > 0) {
-			buffer[bytes_received] = '\0';
-			if (strcmp(buffer, "kill") == 0) {
-				const char* command = "start nvda -r";
-				system(command);
-			}
+		char szBuffer[1024];
+		int nBytesReceived;
+		while ((nBytesReceived = recv(hClientSocket, szBuffer, sizeof(szBuffer) - 1, 0)) > 0) {
+			szBuffer[nBytesReceived] = '\0';
+			if (strcmp(szBuffer, "kill") == 0) system("start nvda -r");
 		}
-		closesocket(client_socket);
+		closesocket(hClientSocket);
 	}
-	closesocket(server_socket);
+	closesocket(hServerSocket);
 	WSACleanup();
-	ExitProcess(0);;
+	ExitProcess(0);
 }
