@@ -5,4 +5,4 @@ add_executable(client WIN32 client.c)
 target_link_libraries(client PRIVATE ws2_32)
 
 add_executable(server WIN32 server.c)
-target_link_libraries(server PRIVATE ws2_32)
+target_link_libraries(server PRIVATE ws2_32 shlwapi)

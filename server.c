@@ -1,10 +1,22 @@
 #define WIN32_LEAN_AND_MEAN
+#include <shlwapi.h>
 #include <windows.h>
 #include <winsock2.h>
 
+void MakeSingleInstance(const char* AppID);
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine, int iCmdShow) {
+	MakeSingleInstance("KillNVDARemotely_Server");
 	char szPort[16] = {0};
-	const char* szConfigFile = "config.ini";
+	char szConfigFile[MAX_PATH] = {0};
+	if (GetCurrentDirectory(sizeof(szConfigFile), szConfigFile) == 0) {
+		MessageBox(NULL, "Failed to get the current working directory", "Error", MB_OK | MB_ICONERROR);
+		ExitProcess(1);
+	}
+	if (!PathCombine(szConfigFile, szConfigFile, "config.ini")) {
+		MessageBox(NULL, "Failed to construct the config file path", "Error", MB_OK | MB_ICONERROR);
+		ExitProcess(1);
+	}
 	if (GetPrivateProfileString("Settings", "Port", NULL, szPort, sizeof(szPort), szConfigFile) == 0) {
 		MessageBox(NULL, "Invalid or missing configuration file", "Error", MB_OK | MB_ICONERROR);
 		ExitProcess(1);
@@ -55,4 +67,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 	closesocket(hServerSocket);
 	WSACleanup();
 	ExitProcess(0);
+}
+
+void MakeSingleInstance(const char* AppID) {
+	HANDLE hMutex = OpenMutex(MUTEX_ALL_ACCESS, 0, AppID);
+	if (!hMutex) hMutex = CreateMutex(0, 0, AppID);
+	else {
+		MessageBox(GetActiveWindow(), "Another instance is already running.", "Error", MB_ICONERROR);
+		ExitProcess(0);
+	}
 }
