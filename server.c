@@ -1,12 +1,44 @@
 #define WIN32_LEAN_AND_MEAN
-#include <shlwapi.h>
+#include <stdio.h>
 #include <windows.h>
 #include <winsock2.h>
+#include <shellapi.h>
+#include <shlwapi.h>
 
+#define ID_TRAY_ICON 100
+#define ID_TRAY_CALLBACK WM_USER + 1
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 void MakeSingleInstance(const char* AppID);
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine, int iCmdShow) {
 	MakeSingleInstance("KillNVDARemotely_Server");
+	WNDCLASSEX wc = {0};
+	wc.cbSize = sizeof(WNDCLASSEX);
+	wc.lpfnWndProc = WndProc;
+	wc.hInstance = hInstance;
+	wc.lpszClassName = "KillNVDARemotely_Server";
+	if (!RegisterClassEx(&wc)) {
+		MessageBox(NULL, "Failed to register window class", "Error", MB_OK | MB_ICONERROR);
+		ExitProcess(1);
+	}
+	HWND hWnd = CreateWindowEx(0, wc.lpszClassName, "KillNVDARemotely_Server", 0, 0, 0, 0, 0, NULL, NULL, hInstance, NULL);
+	if (!hWnd) {
+		MessageBox(NULL, "Failed to create window", "Error", MB_OK | MB_ICONERROR);
+		ExitProcess(1);
+	}
+	NOTIFYICONDATA nid = {0};
+	nid.cbSize = sizeof(NOTIFYICONDATA);
+	nid.hWnd = hWnd;
+	nid.uID = ID_TRAY_ICON;
+	nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+	nid.uCallbackMessage = ID_TRAY_CALLBACK;
+	nid.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+	strncpy(nid.szTip, "Kill NVDA Remotely Server", sizeof(nid.szTip));
+	if (!Shell_NotifyIcon(NIM_ADD, &nid)) {
+		MessageBox(NULL, "Failed to create tray icon", "Error", MB_OK | MB_ICONERROR);
+		ExitProcess(1);
+	}
 	char szPort[16] = {0};
 	char szConfigFile[MAX_PATH] = {0};
 	if (GetCurrentDirectory(sizeof(szConfigFile), szConfigFile) == 0) {
@@ -48,32 +80,63 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR szCmdLine,
 		WSACleanup();
 		ExitProcess(1);
 	}
+	MSG msg;
 	while (1) {
-		SOCKET hClientSocket = accept(hServerSocket, NULL, NULL);
-		if (hClientSocket == INVALID_SOCKET) {
-			MessageBox(NULL, "Accept failed", "Error", MB_OK | MB_ICONERROR);
-			closesocket(hServerSocket);
-			WSACleanup();
-			ExitProcess(1);
+		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+			if (msg.message == WM_QUIT) {
+				closesocket(hServerSocket);
+				WSACleanup();
+				Shell_NotifyIcon(NIM_DELETE, &nid);
+				ExitProcess(0);
+			}
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
 		}
-		char szBuffer[1024];
-		int nBytesReceived;
-		while ((nBytesReceived = recv(hClientSocket, szBuffer, sizeof(szBuffer) - 1, 0)) > 0) {
-			szBuffer[nBytesReceived] = '\0';
-			if (strcmp(szBuffer, "kill") == 0) system("start nvda -r");
+		fd_set readSet;
+		FD_ZERO(&readSet);
+		FD_SET(hServerSocket, &readSet);
+		struct timeval timeout = {0, 0}; // Non-blocking.
+		if (select(0, &readSet, NULL, NULL, &timeout) > 0) {
+			SOCKET hClientSocket = accept(hServerSocket, NULL, NULL);
+			if (hClientSocket == INVALID_SOCKET) {
+				MessageBox(NULL, "Accept failed", "Error", MB_OK | MB_ICONERROR);
+				closesocket(hServerSocket);
+				WSACleanup();
+				ExitProcess(1);
+			}
+			char szBuffer[1024];
+			int nBytesReceived;
+			while ((nBytesReceived = recv(hClientSocket, szBuffer, sizeof(szBuffer) - 1, 0)) > 0) {
+				szBuffer[nBytesReceived] = '\0';
+				if (strcmp(szBuffer, "kill") == 0) system("start nvda -r");
+			}
+			closesocket(hClientSocket);
 		}
-		closesocket(hClientSocket);
 	}
 	closesocket(hServerSocket);
 	WSACleanup();
-	ExitProcess(0);
+	Shell_NotifyIcon(NIM_DELETE, &nid);
+	return 0;
+}
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
+	switch (uMsg) {
+		case ID_TRAY_CALLBACK:
+			PostQuitMessage(0);
+			break;
+		case WM_DESTROY:
+			PostQuitMessage(0);
+			break;
+	}
+	return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
 void MakeSingleInstance(const char* AppID) {
-	HANDLE hMutex = OpenMutex(MUTEX_ALL_ACCESS, 0, AppID);
-	if (!hMutex) hMutex = CreateMutex(0, 0, AppID);
-	else {
-		MessageBox(GetActiveWindow(), "Another instance is already running.", "Error", MB_ICONERROR);
+	char mutexName[128];
+	snprintf(mutexName, sizeof(mutexName), "%s_IsAlreadyRunning", AppID);
+	HANDLE hMutex = CreateMutex(NULL, TRUE, mutexName);
+	if (GetLastError() == ERROR_ALREADY_EXISTS) {
+		MessageBox(NULL, "Another instance is already running", "Error", MB_ICONERROR | MB_OK);
 		ExitProcess(0);
 	}
 }
